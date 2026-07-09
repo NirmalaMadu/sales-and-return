@@ -160,6 +160,12 @@
             box-sizing: border-box;
         }
 
+        .bar-chart-container {
+            width: 100%;
+            height: 400px;
+            position: relative;
+        }
+
         #recordsContainer { display: none; }
         .table-responsive { overflow-x: auto; }
         table {
@@ -271,6 +277,8 @@
                                     <option value="2026" selected>2026</option>
                                     <option value="2027">2027</option>
                                     <option value="2028">2028</option>
+                                    <option value="2029">2029</option>
+                                    <option value="2030">2030</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex: 1;">
@@ -314,11 +322,9 @@
                     <p style="font-size: 0.9rem; color: #64748b; line-height: 1.5;">
                         Fill out the provided Excel template and upload it here. If a Representative's name isn't registered yet, the system will automatically register them for you!
                     </p>
-                    
                     <button type="button" onclick="downloadExcelTemplate()" class="btn-success" style="margin-bottom: 20px;">
                         ⬇️ Download Excel Template
                     </button>
-
                     <div class="form-group">
                         <label for="excelUpload">Upload Filled Excel File (.xlsx or .csv)</label>
                         <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" style="background: var(--background);">
@@ -327,12 +333,11 @@
             </div>
         </div>
 
-        <!-- 3. Dynamic Chart Section -->
+        <!-- 3. Dynamic Pie Chart Section -->
         <div class="card full-width">
             <div class="card-header">
-                <h2>3. Graphical Performance Report</h2>
+                <h2>3. Graphical Performance Report (Proportion)</h2>
             </div>
-            
             <div class="chart-controls">
                 <div class="form-group">
                     <label for="chartScope">Report Scope</label>
@@ -374,14 +379,51 @@
                     </select>
                 </div>
             </div>
-
             <div id="chartsContainer" class="charts-grid"></div>
         </div>
 
-        <!-- 4. Data Review Table (Collapsible & Filterable) -->
+        <!-- 4. Bar Chart Trend Section -->
         <div class="card full-width">
             <div class="card-header">
-                <h2>4. Data Records</h2>
+                <h2>4. Sales vs Returns Analysis (Trend Bar Chart)</h2>
+            </div>
+            <div class="chart-controls">
+                <div class="form-group">
+                    <label for="trendScope">Report Scope</label>
+                    <select id="trendScope">
+                        <option value="Overall">Overall Company (Aggregate)</option>
+                        <!-- Dynamic Reps inject here -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="trendViewMode">View Breakdown By</label>
+                    <select id="trendViewMode">
+                        <option value="Monthly">Monthly Breakdown</option>
+                        <option value="Yearly">Yearly Breakdown</option>
+                    </select>
+                </div>
+                <div class="form-group" id="trendYearGroup">
+                    <label for="trendYear">Select Year (For Monthly View)</label>
+                    <select id="trendYear">
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                        <option value="2027">2027</option>
+                        <option value="2028">2028</option>
+                        <option value="2029">2029</option>
+                        <option value="2030">2030</option>
+                    </select>
+                </div>
+            </div>
+            <div class="bar-chart-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 5. Data Review Table (Collapsible & Filterable) -->
+        <div class="card full-width">
+            <div class="card-header">
+                <h2>5. Data Records</h2>
                 <button type="button" id="toggleRecordsBtn" class="btn-sm btn-secondary">Expand / View Records</button>
             </div>
             
@@ -445,10 +487,10 @@
             </div>
         </div>
 
-        <!-- 5. Data Management (Backup/Restore/Clear) -->
+        <!-- 6. Data Management (Backup/Restore/Clear) -->
         <div class="card full-width">
             <div class="card-header">
-                <h2>5. System Data Management (JSON Backup)</h2>
+                <h2>6. System Data Management (JSON Backup)</h2>
             </div>
             <div class="management-flex">
                 <div>
@@ -475,9 +517,12 @@
         // --- SYSTEM STATE ---
         let appData = { reps: [], records: [] };
         let chartInstances = []; 
+        let trendChartInstance = null;
         let editingIndex = -1; 
         
         const chartColors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#64748b', '#f43f5e'];
+        const monthsList = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const yearsList = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
 
         // --- DOM Elements ---
         const repForm = document.getElementById('repForm');
@@ -492,10 +537,16 @@
         const dataSubmitBtn = document.getElementById('dataSubmitBtn');
         const cancelEditBtn = document.getElementById('cancelEditBtn');
         
-        // Chart Control Elements
+        // Pie Chart Control Elements
         const chartScope = document.getElementById('chartScope');
         const chartYear = document.getElementById('chartYear');
         const chartTimeframe = document.getElementById('chartTimeframe');
+
+        // Trend Chart Control Elements
+        const trendScope = document.getElementById('trendScope');
+        const trendViewMode = document.getElementById('trendViewMode');
+        const trendYear = document.getElementById('trendYear');
+        const trendYearGroup = document.getElementById('trendYearGroup');
 
         // Table Filter Elements
         const filterRep = document.getElementById('filterRep');
@@ -539,15 +590,11 @@
                         const sales = parseFloat(row['Sales']);
                         const returns = parseFloat(row['Returns']);
 
-                        // Validate that all fields have data
                         if (rep && year && month && !isNaN(sales) && !isNaN(returns)) {
-                            
-                            // AUTO-REGISTER REPRESENTATIVE IF NEW
                             if (!appData.reps.includes(rep)) {
                                 appData.reps.push(rep);
                                 newRepsAdded++;
                             }
-
                             appData.records.push({
                                 timestamp: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString() + ' (Excel)',
                                 rep: rep,
@@ -558,24 +605,19 @@
                             });
                             recordsAdded++;
                         } else {
-                            recordsSkipped++; // Row was empty or contained invalid numbers
+                            recordsSkipped++; 
                         }
                     });
 
                     updateUI();
                     
                     let alertMsg = `Successfully imported ${recordsAdded} records from Excel.`;
-                    if (newRepsAdded > 0) {
-                        alertMsg += `\n\n✅ Automatically registered ${newRepsAdded} new Representatives from the sheet.`;
-                    }
-                    if (recordsSkipped > 0) {
-                        alertMsg += `\n\n⚠️ ${recordsSkipped} rows were skipped because they had missing data or invalid numbers.`;
-                    }
+                    if (newRepsAdded > 0) alertMsg += `\n\n✅ Automatically registered ${newRepsAdded} new Representatives.`;
+                    if (recordsSkipped > 0) alertMsg += `\n\n⚠️ ${recordsSkipped} rows were skipped due to missing/invalid data.`;
                     alert(alertMsg);
 
                 } catch (err) {
-                    alert('Error reading the file! Make sure you are uploading the .xlsx or .csv Excel template into this section, not the .json Backup file.');
-                    console.error(err);
+                    alert('Error reading the file! Ensure you upload the .xlsx/.csv Excel template here.');
                 }
                 excelUploadInput.value = ''; 
             };
@@ -595,62 +637,51 @@
 
         // --- UI UPDATERS ---
         function updateUI() {
-            // Update Data Entry Dropdown
+            // Update Rep Selectors
             repSelect.innerHTML = '<option value="" disabled selected>Select a Rep...</option>';
-            appData.reps.forEach(rep => {
-                const option = document.createElement('option');
-                option.value = rep;
-                option.textContent = rep;
-                repSelect.appendChild(option);
-            });
-
-            // Update Chart Scope Dropdown
+            
             const currentScopeSelection = chartScope.value || 'Overall';
-            chartScope.innerHTML = `
-                <option value="Overall">Overall Company (Aggregate)</option>
-                <option value="Contribution">Contribution to Net Sales (Rep vs Rep)</option>
-                <option value="AllReps">All Representatives (Individual)</option>
-            `;
-            appData.reps.forEach(rep => {
-                const option = document.createElement('option');
-                option.value = rep;
-                option.textContent = rep;
-                chartScope.appendChild(option);
-            });
-            chartScope.value = currentScopeSelection;
+            chartScope.innerHTML = `<option value="Overall">Overall Company (Aggregate)</option><option value="Contribution">Contribution to Net Sales (Rep vs Rep)</option><option value="AllReps">All Representatives (Individual)</option>`;
+            
+            const currentTrendScope = trendScope.value || 'Overall';
+            trendScope.innerHTML = `<option value="Overall">Overall Company (Aggregate)</option>`;
 
-            // Update Table Filter Dropdown
             const currentFilterRep = filterRep.value || 'All';
             filterRep.innerHTML = '<option value="All">All Representatives</option>';
+
             appData.reps.forEach(rep => {
-                const option = document.createElement('option');
-                option.value = rep;
-                option.textContent = rep;
-                if(rep === currentFilterRep) option.selected = true;
-                filterRep.appendChild(option);
+                // Dropdown 1: Data Entry
+                repSelect.appendChild(new Option(rep, rep));
+                // Dropdown 2: Pie Charts
+                chartScope.appendChild(new Option(rep, rep));
+                // Dropdown 3: Trend Chart
+                trendScope.appendChild(new Option(rep, rep));
+                // Dropdown 4: Table Filter
+                filterRep.appendChild(new Option(rep, rep));
             });
+            
+            chartScope.value = currentScopeSelection;
+            trendScope.value = currentTrendScope;
+            filterRep.value = currentFilterRep;
 
             renderTable();
             updateChartDisplay();
+            updateTrendChart();
         }
 
         // --- TABLE FILTERING LOGIC ---
         function renderTable() {
             tableBody.innerHTML = '';
-            
             const selectedRep = filterRep.value;
             const selectedYear = filterYear.value;
             const selectedMonth = filterMonth.value;
-
             let rowCount = 0;
 
             appData.records.forEach((record, originalIndex) => {
                 const recYear = record.year || "2026";
-                const matchRep = (selectedRep === 'All') || (record.rep === selectedRep);
-                const matchYear = (selectedYear === 'All') || (recYear === selectedYear);
-                const matchMonth = (selectedMonth === 'All') || (record.month === selectedMonth);
-
-                if (matchRep && matchYear && matchMonth) {
+                if ((selectedRep === 'All' || record.rep === selectedRep) && 
+                    (selectedYear === 'All' || recYear === selectedYear) && 
+                    (selectedMonth === 'All' || record.month === selectedMonth)) {
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${record.timestamp}</td>
@@ -678,8 +709,94 @@
         filterYear.addEventListener('change', renderTable);
         filterMonth.addEventListener('change', renderTable);
 
+        // --- 4. TREND BAR CHART LOGIC ---
+        function initTrendChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            trendChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Sales (Rs.)', data: [], backgroundColor: '#10b981', borderRadius: 4 },
+                        { label: 'Returns (Rs.)', data: [], backgroundColor: '#ef4444', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#e2e8f0' } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Sales vs Returns', font: { size: 16 } }
+                    }
+                }
+            });
+        }
 
-        // --- CHART LOGIC ---
+        function updateTrendChart() {
+            const mode = trendViewMode.value;
+            const selectedRep = trendScope.value;
+            const selectedYear = trendYear.value;
+
+            // Toggle Year select visibility
+            trendYearGroup.style.display = (mode === 'Monthly') ? 'block' : 'none';
+
+            let chartLabels = [];
+            let salesData = [];
+            let returnsData = [];
+
+            if (mode === 'Monthly') {
+                chartLabels = monthsList;
+                salesData = new Array(12).fill(0);
+                returnsData = new Array(12).fill(0);
+
+                appData.records.forEach(r => {
+                    const recYear = r.year || "2026";
+                    if (recYear === selectedYear && (selectedRep === 'Overall' || r.rep === selectedRep)) {
+                        const monthIndex = monthsList.indexOf(r.month);
+                        if (monthIndex !== -1) {
+                            salesData[monthIndex] += r.sales;
+                            returnsData[monthIndex] += r.returns;
+                        }
+                    }
+                });
+                const titleRep = selectedRep === 'Overall' ? 'Overall Company' : selectedRep;
+                trendChartInstance.options.plugins.title.text = `${titleRep} - Monthly Breakdown (${selectedYear})`;
+
+            } else { // Yearly Mode
+                chartLabels = yearsList;
+                salesData = new Array(yearsList.length).fill(0);
+                returnsData = new Array(yearsList.length).fill(0);
+
+                appData.records.forEach(r => {
+                    const recYear = r.year || "2026";
+                    if (selectedRep === 'Overall' || r.rep === selectedRep) {
+                        const yearIndex = yearsList.indexOf(recYear);
+                        if (yearIndex !== -1) {
+                            salesData[yearIndex] += r.sales;
+                            returnsData[yearIndex] += r.returns;
+                        }
+                    }
+                });
+                const titleRep = selectedRep === 'Overall' ? 'Overall Company' : selectedRep;
+                trendChartInstance.options.plugins.title.text = `${titleRep} - Yearly Trend Breakdown`;
+            }
+
+            trendChartInstance.data.labels = chartLabels;
+            trendChartInstance.data.datasets[0].data = salesData;
+            trendChartInstance.data.datasets[1].data = returnsData;
+            trendChartInstance.update();
+        }
+
+        trendScope.addEventListener('change', updateTrendChart);
+        trendViewMode.addEventListener('change', updateTrendChart);
+        trendYear.addEventListener('change', updateTrendChart);
+
+
+        // --- 3. PIE CHART LOGIC ---
         function updateChartDisplay() {
             chartsContainer.innerHTML = '';
             chartInstances.forEach(chart => chart.destroy());
@@ -976,6 +1093,8 @@
             reader.readAsText(file);
         });
         
+        // Initialize
+        initTrendChart();
         updateUI();
 
     </script>
