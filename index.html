@@ -268,15 +268,20 @@
         
         <!-- HEADER WITH HARDCODED BASE64 LOGO -->
         <div class="top-header-section">
-            <!-- ====== PASTE YOUR BASE64 CODE HERE ====== -->
             <img src="PASTE_YOUR_BASE64_CODE_HERE" alt="Company Logo" class="company-logo" id="companyLogo" onerror="this.style.display='none'">
             <h1 class="header-title">Sales & Return Analyzer</h1>
+            
+            <input type="file" id="logoUploadInput" accept="image/*" style="display: none;">
+            <button type="button" onclick="document.getElementById('logoUploadInput').click()" class="btn-sm btn-secondary" style="font-size: 0.8rem; margin-top: 5px; display:none;">
+                📁 Upload Logo
+            </button>
         </div>
 
         <!-- 1. Registration Section -->
         <div class="card full-width">
             <div class="card-header">
                 <h2>1. Register & Manage Representatives</h2>
+                <button type="button" id="toggleRepsBtn" class="btn-sm btn-secondary">Expand / View Reps</button>
             </div>
             <form id="repForm" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
                 <div class="form-group" style="flex: 2; min-width: 250px; margin-bottom: 0;">
@@ -289,8 +294,8 @@
                 </div>
             </form>
 
-            <!-- Sub-table displaying registered reps -->
-            <div id="repsTableContainer" style="margin-top: 20px; display: none; border-top: 1px solid var(--border); padding-top: 15px;">
+            <!-- Sub-table displaying registered reps (Hidden by default) -->
+            <div id="repsSectionWrapper" style="display: none; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
                 <h3 style="font-size: 1rem; color: var(--secondary); margin-top: 0; margin-bottom: 10px;">Registered Representatives</h3>
                 <div class="table-responsive">
                     <table class="sub-table">
@@ -568,23 +573,46 @@
     </div>
 
     <script>
-        // --- SYSTEM STATE ---
-        let appData = { reps: [], records: [] };
+        // --- SYSTEM STATE & LOCAL STORAGE ---
+        let appData = { reps: [], records: [], logo: null };
         let chartInstances = []; 
         let trendChartInstance = null;
         let editingIndex = -1; 
-        let editingRepIndex = -1; // -1 means regular registration mode
+        let editingRepIndex = -1; 
         
         const chartColors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#64748b', '#f43f5e'];
         const monthsList = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const yearsList = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
 
+        // Data Persistence Functions
+        function loadData() {
+            const stored = localStorage.getItem('salesAnalyzerData');
+            if (stored) {
+                try {
+                    appData = JSON.parse(stored);
+                } catch(e) {
+                    console.error("Failed to load local storage data.", e);
+                }
+            }
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem('salesAnalyzerData', JSON.stringify(appData));
+            } catch (e) {
+                if (e.name === 'QuotaExceededError') {
+                    console.warn("Browser storage limit exceeded. This usually happens if you embedded a very large logo image.");
+                }
+            }
+        }
+
         // --- DOM Elements ---
         const repForm = document.getElementById('repForm');
         const repSubmitBtn = document.getElementById('repSubmitBtn');
         const cancelRepEditBtn = document.getElementById('cancelRepEditBtn');
-        const repsTableContainer = document.getElementById('repsTableContainer');
+        const repsSectionWrapper = document.getElementById('repsSectionWrapper');
         const repsTableBody = document.getElementById('repsTableBody');
+        const toggleRepsBtn = document.getElementById('toggleRepsBtn');
 
         const dataForm = document.getElementById('dataForm');
         const repSelect = document.getElementById('repSelect');
@@ -597,6 +625,7 @@
         const dataSubmitBtn = document.getElementById('dataSubmitBtn');
         const cancelEditBtn = document.getElementById('cancelEditBtn');
         const companyLogo = document.getElementById('companyLogo');
+        const logoUploadInput = document.getElementById('logoUploadInput');
         
         // Control Panels
         const chartScope = document.getElementById('chartScope');
@@ -663,7 +692,9 @@
                         } else { recordsSkipped++; }
                     });
 
+                    saveData();
                     updateUI();
+                    
                     let alertMsg = `Successfully imported ${recordsAdded} records from Excel.`;
                     if (newRepsAdded > 0) alertMsg += `\n\n✅ Automatically registered ${newRepsAdded} new Representatives.`;
                     if (recordsSkipped > 0) alertMsg += `\n\n⚠️ ${recordsSkipped} rows were skipped due to incomplete data.`;
@@ -676,7 +707,17 @@
             reader.readAsArrayBuffer(file);
         });
 
-        // --- COLLAPSIBLE LOGIC ---
+        // --- COLLAPSIBLE SECTIONS LOGIC ---
+        toggleRepsBtn.addEventListener('click', () => {
+            if (repsSectionWrapper.style.display === 'none' || repsSectionWrapper.style.display === '') {
+                repsSectionWrapper.style.display = 'block';
+                toggleRepsBtn.textContent = 'Hide Reps';
+            } else {
+                repsSectionWrapper.style.display = 'none';
+                toggleRepsBtn.textContent = 'Expand / View Reps';
+            }
+        });
+
         toggleRecordsBtn.addEventListener('click', () => {
             if (recordsContainer.style.display === 'none' || recordsContainer.style.display === '') {
                 recordsContainer.style.display = 'block';
@@ -692,7 +733,6 @@
             // Update Reps List Table
             repsTableBody.innerHTML = '';
             if (appData.reps.length > 0) {
-                repsTableContainer.style.display = 'block';
                 appData.reps.forEach((rep, idx) => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
@@ -705,7 +745,7 @@
                     repsTableBody.appendChild(row);
                 });
             } else {
-                repsTableContainer.style.display = 'none';
+                repsTableBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #64748b;">No representatives registered yet.</td></tr>';
             }
 
             repSelect.innerHTML = '<option value="" disabled selected>Select a Rep...</option>';
@@ -913,6 +953,7 @@
                     }
                 }
             });
+            chartInstances.push(newChart);
         }
 
         function createContributionChart(labels, data, year, timeframe) {
@@ -942,41 +983,32 @@
                     }
                 }
             });
+            chartInstances.push(newChart);
         }
 
         chartScope.addEventListener('change', updateChartDisplay);
         chartYear.addEventListener('change', updateChartDisplay);
         chartTimeframe.addEventListener('change', updateChartDisplay);
 
-        // --- REPRESENTATIVE MANAGEMENT LOGIC (ADD, EDIT, DELETE) ---
+        // --- REPRESENTATIVE MANAGEMENT LOGIC ---
         repForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const inputName = document.getElementById('repName').value.trim();
             if (!inputName) return;
 
             if (editingRepIndex > -1) {
-                // UPDATE MODE
                 const oldName = appData.reps[editingRepIndex];
-                
                 if (appData.reps.includes(inputName) && appData.reps[editingRepIndex] !== inputName) {
                     alert('This representative name is already registered.');
                     return;
                 }
-
-                // Update name in reps list
                 appData.reps[editingRepIndex] = inputName;
-
-                // Sync historical data records with the new name string
                 appData.records.forEach(record => {
-                    if (record.rep === oldName) {
-                        record.rep = inputName;
-                    }
+                    if (record.rep === oldName) record.rep = inputName;
                 });
-
                 resetRepForm();
                 alert('Representative name updated and synchronized successfully!');
             } else {
-                // REGULAR REGISTRATION MODE
                 if (!appData.reps.includes(inputName)) {
                     appData.reps.push(inputName);
                     repForm.reset();
@@ -985,6 +1017,7 @@
                     alert('This representative is already registered.');
                 }
             }
+            saveData();
             updateUI();
         });
 
@@ -1004,17 +1037,17 @@
             editingRepIndex = index;
             repSubmitBtn.textContent = 'Update Rep';
             cancelRepEditBtn.style.display = 'inline-block';
+            
+            repsSectionWrapper.style.display = 'block';
+            toggleRepsBtn.textContent = 'Hide Reps';
+
             document.getElementById('repName').focus();
         }
 
         window.deleteRep = function(index) {
             const targetRep = appData.reps[index];
             if (confirm(`🚨 WARNING! 🚨\n\nAre you sure you want to delete "${targetRep}"?\nDeleting them will permanently erase all matching sales and returns data for this representative.`)) {
-                
-                // Remove rep from configurations array
                 appData.reps.splice(index, 1);
-                
-                // Cascade wipe: clear matching entry records
                 appData.records = appData.records.filter(record => record.rep !== targetRep);
 
                 if (editingRepIndex === index) {
@@ -1022,7 +1055,7 @@
                 } else if (editingRepIndex > index) {
                     editingRepIndex--;
                 }
-
+                saveData();
                 updateUI();
                 alert(`Representative "${targetRep}" and their records were removed.`);
             }
@@ -1043,6 +1076,7 @@
             if (editingIndex > -1) {
                 payload.timestamp += ' (Edited)'; appData.records[editingIndex] = payload; resetDataForm();
             } else { appData.records.push(payload); resetDataForm(); }
+            saveData();
             updateUI();
         });
 
@@ -1056,7 +1090,7 @@
 
         function deleteRecord(index) {
             if (confirm('Delete this record permanently?')) {
-                appData.records.splice(index, 1); if (editingIndex === index) resetDataForm(); updateUI();
+                appData.records.splice(index, 1); if (editingIndex === index) resetDataForm(); saveData(); updateUI();
             }
         }
 
@@ -1073,7 +1107,7 @@
 
         window.clearAllData = function() {
             if(confirm("🚨 Erase ALL system data permanently?")) {
-                appData = { reps: [], records: [] }; resetDataForm(); resetRepForm(); updateUI();
+                appData = { reps: [], records: [] }; resetDataForm(); resetRepForm(); saveData(); updateUI();
             }
         }
 
@@ -1092,14 +1126,20 @@
                 try {
                     const imported = JSON.parse(event.target.result);
                     if (imported.hasOwnProperty('reps') && imported.hasOwnProperty('records')) {
-                        appData = imported; updateUI(); resetDataForm(); resetRepForm(); alert('Data restored successfully!');
+                        appData = imported; 
+                        saveData(); // Save the imported file to browser storage
+                        updateUI(); 
+                        resetDataForm(); 
+                        resetRepForm(); 
+                        alert('Data restored successfully!');
                     }
                 } catch (error) { alert('Invalid backup layout.'); }
             };
             reader.readAsText(file);
         });
         
-        // Initialize View engines
+        // Initialize App
+        loadData(); 
         initTrendChart();
         updateUI();
     </script>
