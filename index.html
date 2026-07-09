@@ -402,6 +402,7 @@
                     <select id="chartScope">
                         <option value="Overall">Overall Company (Aggregate)</option>
                         <option value="Contribution">Contribution to Net Sales (Rep vs Rep)</option>
+                        <option value="ReturnContribution">Contribution to Net Returns (Rep vs Rep)</option>
                         <option value="AllReps">All Representatives (Individual)</option>
                     </select>
                 </div>
@@ -729,7 +730,12 @@
 
             repSelect.innerHTML = '<option value="" disabled selected>Select a Rep...</option>';
             const currentScopeSelection = chartScope.value || 'Overall';
-            chartScope.innerHTML = `<option value="Overall">Overall Company (Aggregate)</option><option value="Contribution">Contribution to Net Sales (Rep vs Rep)</option><option value="AllReps">All Representatives (Individual)</option>`;
+            chartScope.innerHTML = `
+                <option value="Overall">Overall Company (Aggregate)</option>
+                <option value="Contribution">Contribution to Net Sales (Rep vs Rep)</option>
+                <option value="ReturnContribution">Contribution to Net Returns (Rep vs Rep)</option>
+                <option value="AllReps">All Representatives (Individual)</option>
+            `;
             const currentTrendScope = trendScope.value || 'Overall';
             trendScope.innerHTML = `<option value="Overall">Overall Company (Aggregate)</option>`;
             const currentFilterRep = filterRep.value || 'All';
@@ -871,7 +877,23 @@
                     if (totalSales > 0) { repNames.push(rep); repSales.push(totalSales); }
                 });
                 if (repSales.length === 0) return;
-                createContributionChart(repNames, repSales, selectedYear, selectedTimeframe);
+                createContributionChart(repNames, repSales, selectedYear, selectedTimeframe, "Net Sales Contribution");
+            } else if (selectedScope === 'ReturnContribution') {
+                if (appData.reps.length === 0) return;
+                let repNames = []; let repReturns = [];
+                appData.reps.forEach(rep => {
+                    let totalReturns = 0;
+                    appData.records.forEach(r => {
+                        const recYear = r.year || "2026";
+                        if (r.rep === rep && (selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) { totalReturns += r.returns; }
+                    });
+                    if (totalReturns > 0) { repNames.push(rep); repReturns.push(totalReturns); }
+                });
+                if (repReturns.length === 0) {
+                    chartsContainer.innerHTML = '<p style="text-align: center; width: 100%; color: #64748b;">No returns data available for the selected period.</p>';
+                    return;
+                }
+                createContributionChart(repNames, repReturns, selectedYear, selectedTimeframe, "Net Returns Contribution");
             } else if (selectedScope === 'AllReps') {
                 appData.reps.forEach(rep => {
                     let sales = 0, returns = 0;
@@ -902,7 +924,7 @@
             const wrapper = document.createElement('div'); wrapper.className = 'chart-wrapper';
             const canvas = document.createElement('canvas'); wrapper.appendChild(canvas); chartsContainer.appendChild(wrapper);
 
-            new Chart(canvas.getContext('2d'), {
+            const newChart = new Chart(canvas.getContext('2d'), {
                 type: 'pie',
                 data: { labels: ['Sales (Rs.)', 'Returns (Rs.)'], datasets: [{ data: [sales, returns], backgroundColor: ['#10b981', '#ef4444'], borderWidth: 1 }] },
                 options: {
@@ -927,21 +949,22 @@
                     }
                 }
             });
+            chartInstances.push(newChart);
         }
 
-        function createContributionChart(labels, data, year, timeframe) {
+        function createContributionChart(labels, data, year, timeframe, chartTitleType) {
             const wrapper = document.createElement('div'); wrapper.className = 'chart-wrapper';
             const canvas = document.createElement('canvas'); wrapper.appendChild(canvas); chartsContainer.appendChild(wrapper);
             const bgColors = labels.map((_, index) => chartColors[index % chartColors.length]);
 
-            new Chart(canvas.getContext('2d'), {
+            const newChart = new Chart(canvas.getContext('2d'), {
                 type: 'pie',
                 data: { labels: labels, datasets: [{ data: data, backgroundColor: bgColors, borderWidth: 1 }] },
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     plugins: {
                         legend: { position: 'bottom' },
-                        title: { display: true, text: `Net Sales Contribution - ${year === 'All' ? 'All Years' : year} - ${timeframe === 'Annual' ? 'Annual' : timeframe}`, font: { size: 14 } },
+                        title: { display: true, text: `${chartTitleType} - ${year === 'All' ? 'All Years' : year} - ${timeframe === 'Annual' ? 'Annual' : timeframe}`, font: { size: 14 } },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
@@ -959,6 +982,7 @@
                     }
                 }
             });
+            chartInstances.push(newChart);
         }
 
         chartScope.addEventListener('change', updateChartDisplay); chartYear.addEventListener('change', updateChartDisplay); chartTimeframe.addEventListener('change', updateChartDisplay);
