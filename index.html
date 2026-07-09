@@ -38,7 +38,7 @@
             max-width: 1200px;
             width: 100%;
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr; /* This creates the side-by-side layout */
             gap: 20px;
         }
 
@@ -81,6 +81,8 @@
             border-radius: 12px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
         }
 
         .card-header {
@@ -209,10 +211,18 @@
         /* Compact Sub-Table for Reps */
         .sub-table {
             min-width: 100% !important;
-            margin-top: 15px;
+            margin-top: 0px;
         }
         .sub-table th, .sub-table td {
             padding: 8px 12px;
+        }
+        
+        /* Scrollable container for Reps to save vertical space */
+        .reps-scroll-container {
+            max-height: 420px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
         }
 
         .management-flex {
@@ -231,21 +241,15 @@
             align-items: center;
         }
 
-        .split-entry-container {
-            display: flex;
-            gap: 30px;
-        }
-        .split-entry-container > div {
-            flex: 1;
-        }
-        .vertical-divider {
-            width: 2px;
-            background-color: var(--border);
+        hr.divider {
+            border: 0;
+            border-top: 1px solid var(--border);
+            margin: 25px 0;
         }
 
         @media (max-width: 768px) {
-            .dashboard-container, .management-flex, .chart-controls, .table-filters, .danger-zone, .split-entry-container {
-                grid-template-columns: 1fr;
+            .dashboard-container, .management-flex, .chart-controls, .table-filters, .danger-zone {
+                grid-template-columns: 1fr; /* Stack vertically on small screens */
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 15px;
@@ -254,10 +258,6 @@
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 10px;
-            }
-            .vertical-divider {
-                width: 100%;
-                height: 2px;
             }
         }
     </style>
@@ -277,118 +277,117 @@
             </button>
         </div>
 
-        <!-- 1. Registration Section -->
-        <div class="card full-width">
+        <!-- 1. Registration & Management Section (Left Column) -->
+        <div class="card">
             <div class="card-header">
-                <h2>1. Register & Manage Representatives</h2>
-                <button type="button" id="toggleRepsBtn" class="btn-sm btn-secondary">Expand / View Reps</button>
+                <h2>1. Register & Manage Reps</h2>
             </div>
-            <form id="repForm" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
-                <div class="form-group" style="flex: 2; min-width: 250px; margin-bottom: 0;">
+            
+            <form id="repForm" style="margin-bottom: 20px;">
+                <div class="form-group">
                     <label for="repName">Representative Name</label>
                     <input type="text" id="repName" placeholder="e.g., John Doe" required>
                 </div>
-                <div style="flex: 1; min-width: 150px; display: flex; gap: 10px;">
+                <div style="display: flex; gap: 10px;">
                     <button type="submit" id="repSubmitBtn">Register Rep</button>
                     <button type="button" id="cancelRepEditBtn" class="btn-secondary" style="display: none;">Cancel</button>
                 </div>
             </form>
 
-            <!-- Sub-table displaying registered reps (Hidden by default) -->
-            <div id="repsSectionWrapper" style="display: none; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
-                <h3 style="font-size: 1rem; color: var(--secondary); margin-top: 0; margin-bottom: 10px;">Registered Representatives</h3>
-                <div class="table-responsive">
+            <!-- Visible sub-table displaying registered reps -->
+            <div id="repsSectionWrapper" style="flex-grow: 1; display: flex; flex-direction: column;">
+                <h3 style="font-size: 1rem; color: var(--secondary); margin-top: 0; margin-bottom: 10px;">Registered Representatives Directory</h3>
+                <div class="reps-scroll-container">
                     <table class="sub-table">
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th style="width: 200px; text-align: right;">Actions</th>
+                                <th style="width: 150px; text-align: right;">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="repsTableBody"></tbody>
+                        <tbody id="repsTableBody">
+                            <!-- Populates dynamically -->
+                        </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- 2. Data Entry Section -->
-        <div class="card full-width" id="dataEntryCard">
+        <!-- 2. Data Entry Section (Right Column) -->
+        <div class="card" id="dataEntryCard">
             <div class="card-header">
                 <h2>2. Add Monthly Data</h2>
             </div>
             
-            <div class="split-entry-container">
-                <!-- Option A: Manual Entry -->
-                <div>
-                    <h3 style="margin-top: 0; color: var(--secondary); font-size: 1.1rem;">Option A: Manual Entry</h3>
-                    <form id="dataForm">
-                        <div class="form-group">
-                            <label for="repSelect">Select Representative</label>
-                            <select id="repSelect" required>
-                                <option value="" disabled selected>Select a Rep...</option>
+            <!-- Option A: Manual Entry -->
+            <div>
+                <h3 style="margin-top: 0; color: var(--secondary); font-size: 1rem;">Option A: Manual Entry</h3>
+                <form id="dataForm">
+                    <div class="form-group">
+                        <label for="repSelect">Select Representative</label>
+                        <select id="repSelect" required>
+                            <option value="" disabled selected>Select a Rep...</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="yearSelect">Year</label>
+                            <select id="yearSelect" required>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026" selected>2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                                <option value="2030">2030</option>
                             </select>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            <div class="form-group" style="flex: 1;">
-                                <label for="yearSelect">Year</label>
-                                <select id="yearSelect" required>
-                                    <option value="2024">2024</option>
-                                    <option value="2025">2025</option>
-                                    <option value="2026" selected>2026</option>
-                                    <option value="2027">2027</option>
-                                    <option value="2028">2028</option>
-                                    <option value="2029">2029</option>
-                                    <option value="2030">2030</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="flex: 1;">
-                                <label for="monthSelect">Month</label>
-                                <select id="monthSelect" required>
-                                    <option value="January">January</option>
-                                    <option value="February">February</option>
-                                    <option value="March">March</option>
-                                    <option value="April">April</option>
-                                    <option value="May">May</option>
-                                    <option value="June">June</option>
-                                    <option value="July">July</option>
-                                    <option value="August">August</option>
-                                    <option value="September">September</option>
-                                    <option value="October">October</option>
-                                    <option value="November">November</option>
-                                    <option value="December">December</option>
-                                </select>
-                            </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="monthSelect">Month</label>
+                            <select id="monthSelect" required>
+                                <option value="January">January</option>
+                                <option value="February">February</option>
+                                <option value="March">March</option>
+                                <option value="April">April</option>
+                                <option value="May">May</option>
+                                <option value="June">June</option>
+                                <option value="July">July</option>
+                                <option value="August">August</option>
+                                <option value="September">September</option>
+                                <option value="October">October</option>
+                                <option value="November">November</option>
+                                <option value="December">December</option>
+                            </select>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            <div class="form-group" style="flex: 1;">
-                                <label for="salesAmount">Sales (Rs.)</label>
-                                <input type="number" id="salesAmount" min="0" required>
-                            </div>
-                            <div class="form-group" style="flex: 1;">
-                                <label for="returnsAmount">Returns (Rs.)</label>
-                                <input type="number" id="returnsAmount" min="0" required>
-                            </div>
-                        </div>
-                        <button type="submit" id="dataSubmitBtn">Add Data Manually</button>
-                        <button type="button" id="cancelEditBtn" class="btn-secondary" style="display: none; margin-top: 10px;">Cancel Edit</button>
-                    </form>
-                </div>
-
-                <div class="vertical-divider"></div>
-
-                <!-- Option B: Bulk Excel Import -->
-                <div>
-                    <h3 style="margin-top: 0; color: var(--secondary); font-size: 1.1rem;">Option B: Bulk Excel Import</h3>
-                    <p style="font-size: 0.9rem; color: #64748b; line-height: 1.5;">
-                        Fill out the provided Excel template and upload it here. If a Representative's name isn't registered yet, the system will automatically register them for you!
-                    </p>
-                    <button type="button" onclick="downloadExcelTemplate()" class="btn-success" style="margin-bottom: 20px;">
-                        ⬇️ Download Excel Template
-                    </button>
-                    <div class="form-group">
-                        <label for="excelUpload">Upload Filled Excel File (.xlsx or .csv)</label>
-                        <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" style="background: var(--background);">
                     </div>
+                    <div style="display: flex; gap: 10px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="salesAmount">Sales (Rs.)</label>
+                            <input type="number" id="salesAmount" min="0" required>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="returnsAmount">Returns (Rs.)</label>
+                            <input type="number" id="returnsAmount" min="0" required>
+                        </div>
+                    </div>
+                    <button type="submit" id="dataSubmitBtn">Add Data Manually</button>
+                    <button type="button" id="cancelEditBtn" class="btn-secondary" style="display: none; margin-top: 10px;">Cancel Edit</button>
+                </form>
+            </div>
+
+            <hr class="divider">
+
+            <!-- Option B: Bulk Excel Import -->
+            <div>
+                <h3 style="margin-top: 0; color: var(--secondary); font-size: 1rem;">Option B: Bulk Excel Import</h3>
+                <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin-bottom: 15px;">
+                    Fill out the template. New representatives in the sheet will be auto-registered!
+                </p>
+                <div style="display: flex; gap: 10px; flex-direction: column;">
+                    <button type="button" onclick="downloadExcelTemplate()" class="btn-success">
+                        ⬇️ Download Template
+                    </button>
+                    <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" style="background: var(--background);">
                 </div>
             </div>
         </div>
@@ -601,7 +600,7 @@
                 localStorage.setItem('salesAnalyzerData', JSON.stringify(appData));
             } catch (e) {
                 if (e.name === 'QuotaExceededError') {
-                    console.warn("Browser storage limit exceeded. This usually happens if you embedded a very large logo image.");
+                    console.warn("Browser storage limit exceeded.");
                 }
             }
         }
@@ -610,9 +609,7 @@
         const repForm = document.getElementById('repForm');
         const repSubmitBtn = document.getElementById('repSubmitBtn');
         const cancelRepEditBtn = document.getElementById('cancelRepEditBtn');
-        const repsSectionWrapper = document.getElementById('repsSectionWrapper');
         const repsTableBody = document.getElementById('repsTableBody');
-        const toggleRepsBtn = document.getElementById('toggleRepsBtn');
 
         const dataForm = document.getElementById('dataForm');
         const repSelect = document.getElementById('repSelect');
@@ -638,6 +635,32 @@
         const filterRep = document.getElementById('filterRep');
         const filterYear = document.getElementById('filterYear');
         const filterMonth = document.getElementById('filterMonth');
+
+        // --- INTERACTIVE LOGIC FOR LOGO UPLOAD ---
+        companyLogo.addEventListener('error', function() {
+            if (!appData.logo) {
+                this.style.display = 'none'; 
+            }
+        });
+
+        companyLogo.addEventListener('load', function() {
+            this.style.display = 'block';
+        });
+
+        logoUploadInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const base64String = event.target.result;
+                appData.logo = base64String; 
+                saveData(); // Save logo to browser
+                companyLogo.src = base64String;
+                companyLogo.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        });
 
         // --- EXCEL BULK UPLOAD LOGIC ---
         window.downloadExcelTemplate = function() {
@@ -708,16 +731,6 @@
         });
 
         // --- COLLAPSIBLE SECTIONS LOGIC ---
-        toggleRepsBtn.addEventListener('click', () => {
-            if (repsSectionWrapper.style.display === 'none' || repsSectionWrapper.style.display === '') {
-                repsSectionWrapper.style.display = 'block';
-                toggleRepsBtn.textContent = 'Hide Reps';
-            } else {
-                repsSectionWrapper.style.display = 'none';
-                toggleRepsBtn.textContent = 'Expand / View Reps';
-            }
-        });
-
         toggleRecordsBtn.addEventListener('click', () => {
             if (recordsContainer.style.display === 'none' || recordsContainer.style.display === '') {
                 recordsContainer.style.display = 'block';
@@ -730,7 +743,12 @@
 
         // --- UI UPDATERS ---
         function updateUI() {
-            // Update Reps List Table
+            if (appData.logo) {
+                companyLogo.src = appData.logo;
+                companyLogo.style.display = 'block';
+            }
+
+            // Update Reps List Table (Always visible now)
             repsTableBody.innerHTML = '';
             if (appData.reps.length > 0) {
                 appData.reps.forEach((rep, idx) => {
@@ -953,7 +971,6 @@
                     }
                 }
             });
-            chartInstances.push(newChart);
         }
 
         function createContributionChart(labels, data, year, timeframe) {
@@ -983,7 +1000,6 @@
                     }
                 }
             });
-            chartInstances.push(newChart);
         }
 
         chartScope.addEventListener('change', updateChartDisplay);
@@ -1037,10 +1053,6 @@
             editingRepIndex = index;
             repSubmitBtn.textContent = 'Update Rep';
             cancelRepEditBtn.style.display = 'inline-block';
-            
-            repsSectionWrapper.style.display = 'block';
-            toggleRepsBtn.textContent = 'Hide Reps';
-
             document.getElementById('repName').focus();
         }
 
@@ -1107,7 +1119,7 @@
 
         window.clearAllData = function() {
             if(confirm("🚨 Erase ALL system data permanently?")) {
-                appData = { reps: [], records: [] }; resetDataForm(); resetRepForm(); saveData(); updateUI();
+                appData = { reps: [], records: [], logo: null }; companyLogo.style.display = 'none'; resetDataForm(); resetRepForm(); saveData(); updateUI();
             }
         }
 
@@ -1127,7 +1139,7 @@
                     const imported = JSON.parse(event.target.result);
                     if (imported.hasOwnProperty('reps') && imported.hasOwnProperty('records')) {
                         appData = imported; 
-                        saveData(); // Save the imported file to browser storage
+                        saveData(); 
                         updateUI(); 
                         resetDataForm(); 
                         resetRepForm(); 
