@@ -38,7 +38,7 @@
             max-width: 1200px;
             width: 100%;
             display: grid;
-            grid-template-columns: 1fr 1fr; /* This creates the side-by-side layout */
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
         }
 
@@ -249,7 +249,7 @@
 
         @media (max-width: 768px) {
             .dashboard-container, .management-flex, .chart-controls, .table-filters, .danger-zone {
-                grid-template-columns: 1fr; /* Stack vertically on small screens */
+                grid-template-columns: 1fr;
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 15px;
@@ -266,7 +266,7 @@
 
     <div class="dashboard-container">
         
-        <!-- HEADER WITH HARDCODED BASE64 LOGO -->
+        <!-- HEADER SECTION -->
         <div class="top-header-section">
             <img src="PASTE_YOUR_BASE64_CODE_HERE" alt="Company Logo" class="company-logo" id="companyLogo" onerror="this.style.display='none'">
             <h1 class="header-title">Sales & Return Analyzer</h1>
@@ -294,7 +294,6 @@
                 </div>
             </form>
 
-            <!-- Visible sub-table displaying registered reps -->
             <div id="repsSectionWrapper" style="flex-grow: 1; display: flex; flex-direction: column;">
                 <h3 style="font-size: 1rem; color: var(--secondary); margin-top: 0; margin-bottom: 10px;">Registered Representatives Directory</h3>
                 <div class="reps-scroll-container">
@@ -478,7 +477,7 @@
             </div>
         </div>
 
-        <!-- 5. Data Review Table (Collapsible & Filterable) -->
+        <!-- 5. Data Review Table -->
         <div class="card full-width">
             <div class="card-header">
                 <h2>5. Data Records</h2>
@@ -545,7 +544,7 @@
             </div>
         </div>
 
-        <!-- 6. Data Management (Backup/Restore/Clear) -->
+        <!-- 6. Data Management -->
         <div class="card full-width">
             <div class="card-header">
                 <h2>6. System Data Management (JSON Backup)</h2>
@@ -583,26 +582,17 @@
         const monthsList = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const yearsList = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
 
-        // Data Persistence Functions
         function loadData() {
             const stored = localStorage.getItem('salesAnalyzerData');
             if (stored) {
-                try {
-                    appData = JSON.parse(stored);
-                } catch(e) {
-                    console.error("Failed to load local storage data.", e);
-                }
+                try { appData = JSON.parse(stored); } 
+                catch(e) { console.error("Failed to load local storage data.", e); }
             }
         }
 
         function saveData() {
-            try {
-                localStorage.setItem('salesAnalyzerData', JSON.stringify(appData));
-            } catch (e) {
-                if (e.name === 'QuotaExceededError') {
-                    console.warn("Browser storage limit exceeded.");
-                }
-            }
+            try { localStorage.setItem('salesAnalyzerData', JSON.stringify(appData)); } 
+            catch (e) { console.warn("Browser storage limit exceeded."); }
         }
 
         // --- DOM Elements ---
@@ -624,7 +614,6 @@
         const companyLogo = document.getElementById('companyLogo');
         const logoUploadInput = document.getElementById('logoUploadInput');
         
-        // Control Panels
         const chartScope = document.getElementById('chartScope');
         const chartYear = document.getElementById('chartYear');
         const chartTimeframe = document.getElementById('chartTimeframe');
@@ -636,33 +625,25 @@
         const filterYear = document.getElementById('filterYear');
         const filterMonth = document.getElementById('filterMonth');
 
-        // --- INTERACTIVE LOGIC FOR LOGO UPLOAD ---
-        companyLogo.addEventListener('error', function() {
-            if (!appData.logo) {
-                this.style.display = 'none'; 
-            }
-        });
-
-        companyLogo.addEventListener('load', function() {
-            this.style.display = 'block';
-        });
+        // --- LOGO LOGIC ---
+        companyLogo.addEventListener('error', function() { if (!appData.logo) this.style.display = 'none'; });
+        companyLogo.addEventListener('load', function() { this.style.display = 'block'; });
 
         logoUploadInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(event) {
                 const base64String = event.target.result;
                 appData.logo = base64String; 
-                saveData(); // Save logo to browser
+                saveData(); 
                 companyLogo.src = base64String;
                 companyLogo.style.display = 'block';
             };
             reader.readAsDataURL(file);
         });
 
-        // --- EXCEL BULK UPLOAD LOGIC ---
+        // --- EXCEL LOGIC ---
         window.downloadExcelTemplate = function() {
             const worksheetData = [
                 ["Representative", "Year", "Month", "Sales", "Returns"],
@@ -678,7 +659,6 @@
         excelUploadInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(event) {
                 try {
@@ -687,9 +667,7 @@
                     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                     const jsonData = XLSX.utils.sheet_to_json(worksheet);
                     
-                    let recordsAdded = 0;
-                    let recordsSkipped = 0;
-                    let newRepsAdded = 0;
+                    let recordsAdded = 0; let recordsSkipped = 0; let newRepsAdded = 0;
 
                     jsonData.forEach(row => {
                         const rep = String(row['Representative'] || '').trim();
@@ -699,56 +677,39 @@
                         const returns = parseFloat(row['Returns']);
 
                         if (rep && year && month && !isNaN(sales) && !isNaN(returns)) {
-                            if (!appData.reps.includes(rep)) {
-                                appData.reps.push(rep);
-                                newRepsAdded++;
-                            }
+                            if (!appData.reps.includes(rep)) { appData.reps.push(rep); newRepsAdded++; }
                             appData.records.push({
                                 timestamp: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString() + ' (Excel)',
-                                rep: rep,
-                                year: year,
-                                month: month,
-                                sales: sales,
-                                returns: returns
+                                rep: rep, year: year, month: month, sales: sales, returns: returns
                             });
                             recordsAdded++;
                         } else { recordsSkipped++; }
                     });
 
-                    saveData();
-                    updateUI();
-                    
+                    saveData(); updateUI();
                     let alertMsg = `Successfully imported ${recordsAdded} records from Excel.`;
                     if (newRepsAdded > 0) alertMsg += `\n\n✅ Automatically registered ${newRepsAdded} new Representatives.`;
                     if (recordsSkipped > 0) alertMsg += `\n\n⚠️ ${recordsSkipped} rows were skipped due to incomplete data.`;
                     alert(alertMsg);
-                } catch (err) {
-                    alert('Error reading file. Ensure it is a valid .xlsx or .csv template.');
-                }
+                } catch (err) { alert('Error reading file. Ensure it is a valid .xlsx or .csv template.'); }
                 excelUploadInput.value = ''; 
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // --- COLLAPSIBLE SECTIONS LOGIC ---
+        // --- COLLAPSIBLE LOGIC ---
         toggleRecordsBtn.addEventListener('click', () => {
             if (recordsContainer.style.display === 'none' || recordsContainer.style.display === '') {
-                recordsContainer.style.display = 'block';
-                toggleRecordsBtn.textContent = 'Hide Records';
+                recordsContainer.style.display = 'block'; toggleRecordsBtn.textContent = 'Hide Records';
             } else {
-                recordsContainer.style.display = 'none';
-                toggleRecordsBtn.textContent = 'Expand / View Records';
+                recordsContainer.style.display = 'none'; toggleRecordsBtn.textContent = 'Expand / View Records';
             }
         });
 
         // --- UI UPDATERS ---
         function updateUI() {
-            if (appData.logo) {
-                companyLogo.src = appData.logo;
-                companyLogo.style.display = 'block';
-            }
+            if (appData.logo) { companyLogo.src = appData.logo; companyLogo.style.display = 'block'; }
 
-            // Update Reps List Table (Always visible now)
             repsTableBody.innerHTML = '';
             if (appData.reps.length > 0) {
                 appData.reps.forEach((rep, idx) => {
@@ -756,7 +717,7 @@
                     row.innerHTML = `
                         <td><strong>${rep}</strong></td>
                         <td style="text-align: right;">
-                            <button onclick="editRep(${idx})" class="btn-sm btn-edit">Edit Name</button>
+                            <button onclick="editRep(${idx})" class="btn-sm btn-edit">Edit</button>
                             <button onclick="deleteRep(${idx})" class="btn-sm btn-delete">Delete</button>
                         </td>
                     `;
@@ -781,28 +742,19 @@
                 filterRep.appendChild(new Option(rep, rep));
             });
             
-            chartScope.value = currentScopeSelection;
-            trendScope.value = currentTrendScope;
-            filterRep.value = currentFilterRep;
-
-            renderTable();
-            updateChartDisplay();
-            updateTrendChart();
+            chartScope.value = currentScopeSelection; trendScope.value = currentTrendScope; filterRep.value = currentFilterRep;
+            renderTable(); updateChartDisplay(); updateTrendChart();
         }
 
         // --- TABLE LOGIC ---
         function renderTable() {
             tableBody.innerHTML = '';
-            const selectedRep = filterRep.value;
-            const selectedYear = filterYear.value;
-            const selectedMonth = filterMonth.value;
+            const selectedRep = filterRep.value; const selectedYear = filterYear.value; const selectedMonth = filterMonth.value;
             let rowCount = 0;
 
             appData.records.forEach((record, originalIndex) => {
                 const recYear = record.year || "2026";
-                if ((selectedRep === 'All' || record.rep === selectedRep) && 
-                    (selectedYear === 'All' || recYear === selectedYear) && 
-                    (selectedMonth === 'All' || record.month === selectedMonth)) {
+                if ((selectedRep === 'All' || record.rep === selectedRep) && (selectedYear === 'All' || recYear === selectedYear) && (selectedMonth === 'All' || record.month === selectedMonth)) {
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${record.timestamp}</td>
@@ -816,20 +768,15 @@
                             <button onclick="deleteRecord(${originalIndex})" class="btn-sm btn-delete">Delete</button>
                         </td>
                     `;
-                    tableBody.appendChild(row);
-                    rowCount++;
+                    tableBody.appendChild(row); rowCount++;
                 }
             });
-            if (rowCount === 0) {
-                tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No matching records found.</td></tr>';
-            }
+            if (rowCount === 0) { tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No matching records found.</td></tr>'; }
         }
 
-        filterRep.addEventListener('change', renderTable);
-        filterYear.addEventListener('change', renderTable);
-        filterMonth.addEventListener('change', renderTable);
+        filterRep.addEventListener('change', renderTable); filterYear.addEventListener('change', renderTable); filterMonth.addEventListener('change', renderTable);
 
-        // --- BAR CHART LOGIC ---
+        // --- TREND BAR CHART LOGIC (WITH PERCENTAGES) ---
         function initTrendChart() {
             const ctx = document.getElementById('trendChart').getContext('2d');
             trendChartInstance = new Chart(ctx, {
@@ -844,26 +791,42 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: '#e2e8f0' } },
-                        x: { grid: { display: false } }
-                    },
-                    plugins: { legend: { position: 'top' }, title: { display: true, font: { size: 16 } } }
+                    scales: { y: { beginAtZero: true, grid: { color: '#e2e8f0' } }, x: { grid: { display: false } } },
+                    plugins: { 
+                        legend: { position: 'top' }, 
+                        title: { display: true, font: { size: 16 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) { label += 'Rs. ' + context.parsed.y; }
+                                    
+                                    let dataIndex = context.dataIndex;
+                                    let sales = context.chart.data.datasets[0].data[dataIndex] || 0;
+                                    let returns = context.chart.data.datasets[1].data[dataIndex] || 0;
+                                    let total = sales + returns;
+                                    
+                                    if (total > 0) {
+                                        let percentage = Math.round((context.parsed.y / total) * 100);
+                                        label += ' (' + percentage + '%)';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
                 }
             });
         }
 
         function updateTrendChart() {
-            const mode = trendViewMode.value;
-            const selectedRep = trendScope.value;
-            const selectedYear = trendYear.value;
-
+            const mode = trendViewMode.value; const selectedRep = trendScope.value; const selectedYear = trendYear.value;
             trendYearGroup.style.display = (mode === 'Monthly') ? 'block' : 'none';
             let chartLabels = []; let salesData = []; let returnsData = [];
 
             if (mode === 'Monthly') {
-                chartLabels = monthsList;
-                salesData = new Array(12).fill(0); returnsData = new Array(12).fill(0);
+                chartLabels = monthsList; salesData = new Array(12).fill(0); returnsData = new Array(12).fill(0);
                 appData.records.forEach(r => {
                     const recYear = r.year || "2026";
                     if (recYear === selectedYear && (selectedRep === 'Overall' || r.rep === selectedRep)) {
@@ -873,8 +836,7 @@
                 });
                 trendChartInstance.options.plugins.title.text = `${selectedRep === 'Overall' ? 'Overall Company' : selectedRep} - Monthly Breakdown (${selectedYear})`;
             } else {
-                chartLabels = yearsList;
-                salesData = new Array(yearsList.length).fill(0); returnsData = new Array(yearsList.length).fill(0);
+                chartLabels = yearsList; salesData = new Array(yearsList.length).fill(0); returnsData = new Array(yearsList.length).fill(0);
                 appData.records.forEach(r => {
                     const recYear = r.year || "2026";
                     if (selectedRep === 'Overall' || r.rep === selectedRep) {
@@ -890,19 +852,12 @@
             trendChartInstance.update();
         }
 
-        trendScope.addEventListener('change', updateTrendChart);
-        trendViewMode.addEventListener('change', updateTrendChart);
-        trendYear.addEventListener('change', updateTrendChart);
+        trendScope.addEventListener('change', updateTrendChart); trendViewMode.addEventListener('change', updateTrendChart); trendYear.addEventListener('change', updateTrendChart);
 
-        // --- PIE CHART LOGIC ---
+        // --- PIE CHART LOGIC (WITH PERCENTAGES) ---
         function updateChartDisplay() {
-            chartsContainer.innerHTML = '';
-            chartInstances.forEach(chart => chart.destroy());
-            chartInstances = [];
-
-            const selectedScope = chartScope.value;
-            const selectedYear = chartYear.value;
-            const selectedTimeframe = chartTimeframe.value;
+            chartsContainer.innerHTML = ''; chartInstances.forEach(chart => chart.destroy()); chartInstances = [];
+            const selectedScope = chartScope.value; const selectedYear = chartYear.value; const selectedTimeframe = chartTimeframe.value;
 
             if (selectedScope === 'Contribution') {
                 if (appData.reps.length === 0) return;
@@ -911,9 +866,7 @@
                     let totalSales = 0;
                     appData.records.forEach(r => {
                         const recYear = r.year || "2026";
-                        if (r.rep === rep && (selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) {
-                            totalSales += r.sales;
-                        }
+                        if (r.rep === rep && (selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) { totalSales += r.sales; }
                     });
                     if (totalSales > 0) { repNames.push(rep); repSales.push(totalSales); }
                 });
@@ -924,9 +877,7 @@
                     let sales = 0, returns = 0;
                     appData.records.forEach(r => {
                         const recYear = r.year || "2026";
-                        if (r.rep === rep && (selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) {
-                            sales += r.sales; returns += r.returns;
-                        }
+                        if (r.rep === rep && (selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) { sales += r.sales; returns += r.returns; }
                     });
                     createPerformanceChart(rep, sales, returns, selectedYear, selectedTimeframe);
                 });
@@ -934,18 +885,14 @@
                 let sales = 0, returns = 0;
                 appData.records.forEach(r => {
                     const recYear = r.year || "2026";
-                    if ((selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) {
-                        sales += r.sales; returns += r.returns;
-                    }
+                    if ((selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) { sales += r.sales; returns += r.returns; }
                 });
                 createPerformanceChart('Overall Company', sales, returns, selectedYear, selectedTimeframe);
             } else {
                 let sales = 0, returns = 0;
                 appData.records.forEach(r => {
                     const recYear = r.year || "2026";
-                    if (r.rep === selectedScope && (selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) {
-                        sales += r.sales; returns += r.returns;
-                    }
+                    if (r.rep === selectedScope && (selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) { sales += r.sales; returns += r.returns; }
                 });
                 createPerformanceChart(selectedScope, sales, returns, selectedYear, selectedTimeframe);
             }
@@ -953,47 +900,27 @@
 
         function createPerformanceChart(titleScopeText, sales, returns, year, timeframe) {
             const wrapper = document.createElement('div'); wrapper.className = 'chart-wrapper';
-            const canvas = document.createElement('canvas'); wrapper.appendChild(canvas);
-            chartsContainer.appendChild(wrapper);
+            const canvas = document.createElement('canvas'); wrapper.appendChild(canvas); chartsContainer.appendChild(wrapper);
 
             new Chart(canvas.getContext('2d'), {
                 type: 'pie',
-                data: {
-                    labels: ['Sales (Rs.)', 'Returns (Rs.)'],
-                    datasets: [{ data: [sales, returns], backgroundColor: ['#10b981', '#ef4444'], borderWidth: 1 }]
-                },
+                data: { labels: ['Sales (Rs.)', 'Returns (Rs.)'], datasets: [{ data: [sales, returns], backgroundColor: ['#10b981', '#ef4444'], borderWidth: 1 }] },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     plugins: {
                         legend: { position: 'bottom' },
-                        title: { display: true, text: `${titleScopeText} - ${year === 'All' ? 'All Years' : year} - ${timeframe === 'Annual' ? 'Annual' : timeframe}`, font: { size: 14 } }
-                    }
-                }
-            });
-        }
-
-        function createContributionChart(labels, data, year, timeframe) {
-            const wrapper = document.createElement('div'); wrapper.className = 'chart-wrapper';
-            const canvas = document.createElement('canvas'); wrapper.appendChild(canvas);
-            chartsContainer.appendChild(wrapper);
-            const bgColors = labels.map((_, index) => chartColors[index % chartColors.length]);
-
-            new Chart(canvas.getContext('2d'), {
-                type: 'pie',
-                data: { labels: labels, datasets: [{ data: data, backgroundColor: bgColors, borderWidth: 1 }] },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        title: { display: true, text: `Net Sales Contribution - ${year === 'All' ? 'All Years' : year} - ${timeframe === 'Annual' ? 'Annual' : timeframe}`, font: { size: 14 } },
+                        title: { display: true, text: `${titleScopeText} - ${year === 'All' ? 'All Years' : year} - ${timeframe === 'Annual' ? 'Annual' : timeframe}`, font: { size: 14 } },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
+                                    let label = context.label ? context.label + ': ' : '';
+                                    label += 'Rs. ' + context.parsed;
                                     let total = context.chart._metasets[context.datasetIndex].total;
-                                    let percentage = Math.round((context.parsed / total) * 100) + '%';
-                                    return `${context.label}: Rs. ${context.parsed} (${percentage})`;
+                                    if (total > 0) {
+                                        let percentage = Math.round((context.parsed / total) * 100);
+                                        label += ' (' + percentage + '%)';
+                                    }
+                                    return label;
                                 }
                             }
                         }
@@ -1002,9 +929,39 @@
             });
         }
 
-        chartScope.addEventListener('change', updateChartDisplay);
-        chartYear.addEventListener('change', updateChartDisplay);
-        chartTimeframe.addEventListener('change', updateChartDisplay);
+        function createContributionChart(labels, data, year, timeframe) {
+            const wrapper = document.createElement('div'); wrapper.className = 'chart-wrapper';
+            const canvas = document.createElement('canvas'); wrapper.appendChild(canvas); chartsContainer.appendChild(wrapper);
+            const bgColors = labels.map((_, index) => chartColors[index % chartColors.length]);
+
+            new Chart(canvas.getContext('2d'), {
+                type: 'pie',
+                data: { labels: labels, datasets: [{ data: data, backgroundColor: bgColors, borderWidth: 1 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        title: { display: true, text: `Net Sales Contribution - ${year === 'All' ? 'All Years' : year} - ${timeframe === 'Annual' ? 'Annual' : timeframe}`, font: { size: 14 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label ? context.label + ': ' : '';
+                                    label += 'Rs. ' + context.parsed;
+                                    let total = context.chart._metasets[context.datasetIndex].total;
+                                    if (total > 0) {
+                                        let percentage = Math.round((context.parsed / total) * 100);
+                                        label += ' (' + percentage + '%)';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        chartScope.addEventListener('change', updateChartDisplay); chartYear.addEventListener('change', updateChartDisplay); chartTimeframe.addEventListener('change', updateChartDisplay);
 
         // --- REPRESENTATIVE MANAGEMENT LOGIC ---
         repForm.addEventListener('submit', function(e) {
@@ -1014,62 +971,33 @@
 
             if (editingRepIndex > -1) {
                 const oldName = appData.reps[editingRepIndex];
-                if (appData.reps.includes(inputName) && appData.reps[editingRepIndex] !== inputName) {
-                    alert('This representative name is already registered.');
-                    return;
-                }
+                if (appData.reps.includes(inputName) && appData.reps[editingRepIndex] !== inputName) { alert('Name already registered.'); return; }
                 appData.reps[editingRepIndex] = inputName;
-                appData.records.forEach(record => {
-                    if (record.rep === oldName) record.rep = inputName;
-                });
-                resetRepForm();
-                alert('Representative name updated and synchronized successfully!');
+                appData.records.forEach(record => { if (record.rep === oldName) record.rep = inputName; });
+                resetRepForm(); alert('Updated successfully!');
             } else {
-                if (!appData.reps.includes(inputName)) {
-                    appData.reps.push(inputName);
-                    repForm.reset();
-                    alert(`${inputName} successfully registered!`);
-                } else {
-                    alert('This representative is already registered.');
-                }
+                if (!appData.reps.includes(inputName)) { appData.reps.push(inputName); repForm.reset(); alert(`${inputName} registered!`); } 
+                else { alert('Already registered.'); }
             }
-            saveData();
-            updateUI();
+            saveData(); updateUI();
         });
 
         cancelRepEditBtn.addEventListener('click', resetRepForm);
 
-        function resetRepForm() {
-            repForm.reset();
-            editingRepIndex = -1;
-            repSubmitBtn.textContent = 'Register Rep';
-            cancelRepEditBtn.style.display = 'none';
-        }
+        function resetRepForm() { repForm.reset(); editingRepIndex = -1; repSubmitBtn.textContent = 'Register Rep'; cancelRepEditBtn.style.display = 'none'; }
 
         window.editRep = function(index) {
-            const currentName = appData.reps[index];
-            document.getElementById('repName').value = currentName;
-            
-            editingRepIndex = index;
-            repSubmitBtn.textContent = 'Update Rep';
-            cancelRepEditBtn.style.display = 'inline-block';
-            document.getElementById('repName').focus();
+            document.getElementById('repName').value = appData.reps[index]; editingRepIndex = index;
+            repSubmitBtn.textContent = 'Update Rep'; cancelRepEditBtn.style.display = 'inline-block'; document.getElementById('repName').focus();
         }
 
         window.deleteRep = function(index) {
             const targetRep = appData.reps[index];
-            if (confirm(`🚨 WARNING! 🚨\n\nAre you sure you want to delete "${targetRep}"?\nDeleting them will permanently erase all matching sales and returns data for this representative.`)) {
+            if (confirm(`🚨 WARNING! 🚨\nDelete "${targetRep}" and permanently erase all their data records?`)) {
                 appData.reps.splice(index, 1);
                 appData.records = appData.records.filter(record => record.rep !== targetRep);
-
-                if (editingRepIndex === index) {
-                    resetRepForm();
-                } else if (editingRepIndex > index) {
-                    editingRepIndex--;
-                }
-                saveData();
-                updateUI();
-                alert(`Representative "${targetRep}" and their records were removed.`);
+                if (editingRepIndex === index) { resetRepForm(); } else if (editingRepIndex > index) { editingRepIndex--; }
+                saveData(); updateUI(); alert(`Deleted "${targetRep}".`);
             }
         }
 
@@ -1077,19 +1005,14 @@
         dataForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const payload = {
-                rep: document.getElementById('repSelect').value,
-                year: document.getElementById('yearSelect').value,
-                month: document.getElementById('monthSelect').value,
-                sales: parseFloat(document.getElementById('salesAmount').value),
-                returns: parseFloat(document.getElementById('returnsAmount').value),
-                timestamp: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString()
+                rep: document.getElementById('repSelect').value, year: document.getElementById('yearSelect').value,
+                month: document.getElementById('monthSelect').value, sales: parseFloat(document.getElementById('salesAmount').value),
+                returns: parseFloat(document.getElementById('returnsAmount').value), timestamp: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString()
             };
 
-            if (editingIndex > -1) {
-                payload.timestamp += ' (Edited)'; appData.records[editingIndex] = payload; resetDataForm();
-            } else { appData.records.push(payload); resetDataForm(); }
-            saveData();
-            updateUI();
+            if (editingIndex > -1) { payload.timestamp += ' (Edited)'; appData.records[editingIndex] = payload; resetDataForm(); } 
+            else { appData.records.push(payload); resetDataForm(); }
+            saveData(); updateUI();
         });
 
         cancelEditBtn.addEventListener('click', resetDataForm);
@@ -1100,17 +1023,12 @@
             editingIndex = -1; dataSubmitBtn.textContent = 'Add Data Manually'; cancelEditBtn.style.display = 'none';
         }
 
-        function deleteRecord(index) {
-            if (confirm('Delete this record permanently?')) {
-                appData.records.splice(index, 1); if (editingIndex === index) resetDataForm(); saveData(); updateUI();
-            }
-        }
+        function deleteRecord(index) { if (confirm('Delete this record permanently?')) { appData.records.splice(index, 1); if (editingIndex === index) resetDataForm(); saveData(); updateUI(); } }
 
         window.editRecord = function(index) {
             const r = appData.records[index];
             document.getElementById('repSelect').value = r.rep; document.getElementById('yearSelect').value = r.year || "2026";
-            document.getElementById('monthSelect').value = r.month; document.getElementById('salesAmount').value = r.sales;
-            document.getElementById('returnsAmount').value = r.returns;
+            document.getElementById('monthSelect').value = r.month; document.getElementById('salesAmount').value = r.sales; document.getElementById('returnsAmount').value = r.returns;
             
             editingIndex = index; dataSubmitBtn.textContent = 'Update Data'; cancelEditBtn.style.display = 'block';
             recordsContainer.style.display = 'block'; toggleRecordsBtn.textContent = 'Hide Records';
@@ -1118,12 +1036,10 @@
         }
 
         window.clearAllData = function() {
-            if(confirm("🚨 Erase ALL system data permanently?")) {
-                appData = { reps: [], records: [], logo: null }; companyLogo.style.display = 'none'; resetDataForm(); resetRepForm(); saveData(); updateUI();
-            }
+            if(confirm("🚨 Erase ALL system data permanently?")) { appData = { reps: [], records: [], logo: null }; companyLogo.style.display = 'none'; resetDataForm(); resetRepForm(); saveData(); updateUI(); }
         }
 
-        // --- BACKUP & SYSTEM INTERFACES ---
+        // --- BACKUP LOGIC ---
         window.backupData = function() {
             const blob = new Blob([JSON.stringify(appData, null, 2)], { type: "application/json" });
             const url = URL.createObjectURL(blob); const a = document.createElement('a');
@@ -1138,22 +1054,14 @@
                 try {
                     const imported = JSON.parse(event.target.result);
                     if (imported.hasOwnProperty('reps') && imported.hasOwnProperty('records')) {
-                        appData = imported; 
-                        saveData(); 
-                        updateUI(); 
-                        resetDataForm(); 
-                        resetRepForm(); 
-                        alert('Data restored successfully!');
+                        appData = imported; saveData(); updateUI(); resetDataForm(); resetRepForm(); alert('Data restored successfully!');
                     }
                 } catch (error) { alert('Invalid backup layout.'); }
             };
             reader.readAsText(file);
         });
         
-        // Initialize App
-        loadData(); 
-        initTrendChart();
-        updateUI();
+        loadData(); initTrendChart(); updateUI();
     </script>
 </body>
 </html>
