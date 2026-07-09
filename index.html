@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales & Return Analyzer</title>
+    
+    <!-- Include Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Include SheetJS for Excel parsing -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #475569;
+            --background: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .header-title {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            margin: 0;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        button {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover { background-color: #1d4ed8; }
+        .btn-secondary { background-color: var(--secondary); }
+        .btn-secondary:hover { background-color: #334155; }
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: #b91c1c; }
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: #059669; }
+
+        .btn-sm {
+            width: auto;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        .btn-edit { background-color: var(--warning); }
+        .btn-edit:hover { background-color: #d97706; }
+        .btn-delete { background-color: var(--danger); }
+        .btn-delete:hover { background-color: #b91c1c; }
+
+        .chart-controls, .table-filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            background-color: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .chart-controls .form-group, .table-filters .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .charts-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+        }
+        .chart-wrapper {
+            width: 350px;
+            max-width: 100%;
+            height: 350px;
+            background: var(--background);
+            padding: 15px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        #recordsContainer { display: none; }
+        .table-responsive { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            min-width: 800px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background-color: var(--background);
+            font-weight: 600;
+        }
+        tr:hover { background-color: #f1f5f9; }
+
+        .management-flex {
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+        }
+        .management-flex > div { flex: 1; }
+
+        .danger-zone {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px dashed #fca5a5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .split-entry-container {
+            display: flex;
+            gap: 30px;
+        }
+        .split-entry-container > div {
+            flex: 1;
+        }
+        .vertical-divider {
+            width: 2px;
+            background-color: var(--border);
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container, .management-flex, .chart-controls, .table-filters, .danger-zone, .split-entry-container {
+                grid-template-columns: 1fr;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .vertical-divider {
+                width: 100%;
+                height: 2px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <h1 class="header-title">Sales & Return Analyzer</h1>
+
+        <!-- 1. Registration Section -->
+        <div class="card full-width">
+            <div class="card-header">
+                <h2>1. Register Representative</h2>
+            </div>
+            <form id="repForm" style="display: flex; gap: 15px; align-items: flex-end;">
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label for="repName">Representative Name</label>
+                    <input type="text" id="repName" placeholder="e.g., John Doe" required>
+                </div>
+                <button type="submit" style="width: 200px;">Register Rep</button>
+            </form>
+        </div>
+
+        <!-- 2. Data Entry Section -->
+        <div class="card full-width" id="dataEntryCard">
+            <div class="card-header">
+                <h2>2. Add Monthly Data</h2>
+            </div>
+            
+            <div class="split-entry-container">
+                <!-- Option A: Manual Entry -->
+                <div>
+                    <h3 style="margin-top: 0; color: var(--secondary); font-size: 1.1rem;">Option A: Manual Entry</h3>
+                    <form id="dataForm">
+                        <div class="form-group">
+                            <label for="repSelect">Select Representative</label>
+                            <select id="repSelect" required>
+                                <option value="" disabled selected>Select a Rep...</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="yearSelect">Year</label>
+                                <select id="yearSelect" required>
+                                    <option value="2024">2024</option>
+                                    <option value="2025">2025</option>
+                                    <option value="2026" selected>2026</option>
+                                    <option value="2027">2027</option>
+                                    <option value="2028">2028</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="monthSelect">Month</label>
+                                <select id="monthSelect" required>
+                                    <option value="January">January</option>
+                                    <option value="February">February</option>
+                                    <option value="March">March</option>
+                                    <option value="April">April</option>
+                                    <option value="May">May</option>
+                                    <option value="June">June</option>
+                                    <option value="July">July</option>
+                                    <option value="August">August</option>
+                                    <option value="September">September</option>
+                                    <option value="October">October</option>
+                                    <option value="November">November</option>
+                                    <option value="December">December</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="salesAmount">Sales (Rs.)</label>
+                                <input type="number" id="salesAmount" min="0" required>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="returnsAmount">Returns (Rs.)</label>
+                                <input type="number" id="returnsAmount" min="0" required>
+                            </div>
+                        </div>
+                        <button type="submit" id="dataSubmitBtn">Add Data Manually</button>
+                        <button type="button" id="cancelEditBtn" class="btn-secondary" style="display: none; margin-top: 10px;">Cancel Edit</button>
+                    </form>
+                </div>
+
+                <div class="vertical-divider"></div>
+
+                <!-- Option B: Bulk Excel Import -->
+                <div>
+                    <h3 style="margin-top: 0; color: var(--secondary); font-size: 1.1rem;">Option B: Bulk Excel Import</h3>
+                    <p style="font-size: 0.9rem; color: #64748b; line-height: 1.5;">
+                        Fill out the provided Excel template and upload it here. If a Representative's name isn't registered yet, the system will automatically register them for you!
+                    </p>
+                    
+                    <button type="button" onclick="downloadExcelTemplate()" class="btn-success" style="margin-bottom: 20px;">
+                        ⬇️ Download Excel Template
+                    </button>
+
+                    <div class="form-group">
+                        <label for="excelUpload">Upload Filled Excel File (.xlsx or .csv)</label>
+                        <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" style="background: var(--background);">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Dynamic Chart Section -->
+        <div class="card full-width">
+            <div class="card-header">
+                <h2>3. Graphical Performance Report</h2>
+            </div>
+            
+            <div class="chart-controls">
+                <div class="form-group">
+                    <label for="chartScope">Report Scope</label>
+                    <select id="chartScope">
+                        <option value="Overall">Overall Company (Aggregate)</option>
+                        <option value="Contribution">Contribution to Net Sales (Rep vs Rep)</option>
+                        <option value="AllReps">All Representatives (Individual)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="chartYear">Year</label>
+                    <select id="chartYear">
+                        <option value="All">All Years</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                        <option value="2027">2027</option>
+                        <option value="2028">2028</option>
+                        <option value="2029">2029</option>
+                        <option value="2030">2030</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="chartTimeframe">Timeframe</label>
+                    <select id="chartTimeframe">
+                        <option value="Annual">Annual (All Months)</option>
+                        <option value="January">January</option>
+                        <option value="February">February</option>
+                        <option value="March">March</option>
+                        <option value="April">April</option>
+                        <option value="May">May</option>
+                        <option value="June">June</option>
+                        <option value="July">July</option>
+                        <option value="August">August</option>
+                        <option value="September">September</option>
+                        <option value="October">October</option>
+                        <option value="November">November</option>
+                        <option value="December">December</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="chartsContainer" class="charts-grid"></div>
+        </div>
+
+        <!-- 4. Data Review Table (Collapsible & Filterable) -->
+        <div class="card full-width">
+            <div class="card-header">
+                <h2>4. Data Records</h2>
+                <button type="button" id="toggleRecordsBtn" class="btn-sm btn-secondary">Expand / View Records</button>
+            </div>
+            
+            <div id="recordsContainer">
+                <div class="table-filters">
+                    <div class="form-group">
+                        <label for="filterRep">Filter by Representative</label>
+                        <select id="filterRep">
+                            <option value="All">All Representatives</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filterYear">Filter by Year</label>
+                        <select id="filterYear">
+                            <option value="All">All Years</option>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                            <option value="2029">2029</option>
+                            <option value="2030">2030</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filterMonth">Filter by Month</label>
+                        <select id="filterMonth">
+                            <option value="All">All Months</option>
+                            <option value="January">January</option>
+                            <option value="February">February</option>
+                            <option value="March">March</option>
+                            <option value="April">April</option>
+                            <option value="May">May</option>
+                            <option value="June">June</option>
+                            <option value="July">July</option>
+                            <option value="August">August</option>
+                            <option value="September">September</option>
+                            <option value="October">October</option>
+                            <option value="November">November</option>
+                            <option value="December">December</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>Date Added</th>
+                                <th>Representative</th>
+                                <th>Year</th>
+                                <th>Month</th>
+                                <th>Sales Amount</th>
+                                <th>Returns Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Data Management (Backup/Restore/Clear) -->
+        <div class="card full-width">
+            <div class="card-header">
+                <h2>5. System Data Management (JSON Backup)</h2>
+            </div>
+            <div class="management-flex">
+                <div>
+                    <label>Export all current system data to a Backup File (.json)</label>
+                    <button type="button" onclick="backupData()" class="btn-secondary">Download System Backup (.json)</button>
+                </div>
+                <div>
+                    <label for="restoreFile">Import System Backup File (.json format only)</label>
+                    <input type="file" id="restoreFile" accept=".json">
+                </div>
+            </div>
+
+            <div class="danger-zone">
+                <div>
+                    <strong style="color: var(--danger); display: block;">Danger Zone</strong>
+                    <span style="font-size: 0.9rem; color: #64748b;">Permanently delete all registered representatives and data records from the system.</span>
+                </div>
+                <button type="button" onclick="clearAllData()" class="btn-danger" style="width: auto; padding: 10px 20px;">Clear All Data</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- SYSTEM STATE ---
+        let appData = { reps: [], records: [] };
+        let chartInstances = []; 
+        let editingIndex = -1; 
+        
+        const chartColors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#64748b', '#f43f5e'];
+
+        // --- DOM Elements ---
+        const repForm = document.getElementById('repForm');
+        const dataForm = document.getElementById('dataForm');
+        const repSelect = document.getElementById('repSelect');
+        const tableBody = document.getElementById('tableBody');
+        const restoreFileInput = document.getElementById('restoreFile');
+        const excelUploadInput = document.getElementById('excelUpload');
+        const chartsContainer = document.getElementById('chartsContainer');
+        const recordsContainer = document.getElementById('recordsContainer');
+        const toggleRecordsBtn = document.getElementById('toggleRecordsBtn');
+        const dataSubmitBtn = document.getElementById('dataSubmitBtn');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        
+        // Chart Control Elements
+        const chartScope = document.getElementById('chartScope');
+        const chartYear = document.getElementById('chartYear');
+        const chartTimeframe = document.getElementById('chartTimeframe');
+
+        // Table Filter Elements
+        const filterRep = document.getElementById('filterRep');
+        const filterYear = document.getElementById('filterYear');
+        const filterMonth = document.getElementById('filterMonth');
+
+        // --- EXCEL BULK UPLOAD LOGIC ---
+        window.downloadExcelTemplate = function() {
+            const worksheetData = [
+                ["Representative", "Year", "Month", "Sales", "Returns"],
+                ["John Doe", "2026", "January", "50000", "2000"],
+                ["Jane Smith", "2026", "February", "75000", "0"]
+            ];
+            const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "DataTemplate");
+            XLSX.writeFile(workbook, "Sales_System_Template.xlsx");
+        }
+
+        excelUploadInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    let recordsAdded = 0;
+                    let recordsSkipped = 0;
+                    let newRepsAdded = 0;
+
+                    jsonData.forEach(row => {
+                        const rep = String(row['Representative'] || '').trim();
+                        const year = String(row['Year'] || '').trim();
+                        const month = String(row['Month'] || '').trim();
+                        const sales = parseFloat(row['Sales']);
+                        const returns = parseFloat(row['Returns']);
+
+                        // Validate that all fields have data
+                        if (rep && year && month && !isNaN(sales) && !isNaN(returns)) {
+                            
+                            // AUTO-REGISTER REPRESENTATIVE IF NEW
+                            if (!appData.reps.includes(rep)) {
+                                appData.reps.push(rep);
+                                newRepsAdded++;
+                            }
+
+                            appData.records.push({
+                                timestamp: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString() + ' (Excel)',
+                                rep: rep,
+                                year: year,
+                                month: month,
+                                sales: sales,
+                                returns: returns
+                            });
+                            recordsAdded++;
+                        } else {
+                            recordsSkipped++; // Row was empty or contained invalid numbers
+                        }
+                    });
+
+                    updateUI();
+                    
+                    let alertMsg = `Successfully imported ${recordsAdded} records from Excel.`;
+                    if (newRepsAdded > 0) {
+                        alertMsg += `\n\n✅ Automatically registered ${newRepsAdded} new Representatives from the sheet.`;
+                    }
+                    if (recordsSkipped > 0) {
+                        alertMsg += `\n\n⚠️ ${recordsSkipped} rows were skipped because they had missing data or invalid numbers.`;
+                    }
+                    alert(alertMsg);
+
+                } catch (err) {
+                    alert('Error reading the file! Make sure you are uploading the .xlsx or .csv Excel template into this section, not the .json Backup file.');
+                    console.error(err);
+                }
+                excelUploadInput.value = ''; 
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // --- COLLAPSIBLE TABLE LOGIC ---
+        toggleRecordsBtn.addEventListener('click', () => {
+            if (recordsContainer.style.display === 'none' || recordsContainer.style.display === '') {
+                recordsContainer.style.display = 'block';
+                toggleRecordsBtn.textContent = 'Hide Records';
+            } else {
+                recordsContainer.style.display = 'none';
+                toggleRecordsBtn.textContent = 'Expand / View Records';
+            }
+        });
+
+        // --- UI UPDATERS ---
+        function updateUI() {
+            // Update Data Entry Dropdown
+            repSelect.innerHTML = '<option value="" disabled selected>Select a Rep...</option>';
+            appData.reps.forEach(rep => {
+                const option = document.createElement('option');
+                option.value = rep;
+                option.textContent = rep;
+                repSelect.appendChild(option);
+            });
+
+            // Update Chart Scope Dropdown
+            const currentScopeSelection = chartScope.value || 'Overall';
+            chartScope.innerHTML = `
+                <option value="Overall">Overall Company (Aggregate)</option>
+                <option value="Contribution">Contribution to Net Sales (Rep vs Rep)</option>
+                <option value="AllReps">All Representatives (Individual)</option>
+            `;
+            appData.reps.forEach(rep => {
+                const option = document.createElement('option');
+                option.value = rep;
+                option.textContent = rep;
+                chartScope.appendChild(option);
+            });
+            chartScope.value = currentScopeSelection;
+
+            // Update Table Filter Dropdown
+            const currentFilterRep = filterRep.value || 'All';
+            filterRep.innerHTML = '<option value="All">All Representatives</option>';
+            appData.reps.forEach(rep => {
+                const option = document.createElement('option');
+                option.value = rep;
+                option.textContent = rep;
+                if(rep === currentFilterRep) option.selected = true;
+                filterRep.appendChild(option);
+            });
+
+            renderTable();
+            updateChartDisplay();
+        }
+
+        // --- TABLE FILTERING LOGIC ---
+        function renderTable() {
+            tableBody.innerHTML = '';
+            
+            const selectedRep = filterRep.value;
+            const selectedYear = filterYear.value;
+            const selectedMonth = filterMonth.value;
+
+            let rowCount = 0;
+
+            appData.records.forEach((record, originalIndex) => {
+                const recYear = record.year || "2026";
+                const matchRep = (selectedRep === 'All') || (record.rep === selectedRep);
+                const matchYear = (selectedYear === 'All') || (recYear === selectedYear);
+                const matchMonth = (selectedMonth === 'All') || (record.month === selectedMonth);
+
+                if (matchRep && matchYear && matchMonth) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${record.timestamp}</td>
+                        <td><strong>${record.rep}</strong></td>
+                        <td>${recYear}</td>
+                        <td>${record.month}</td>
+                        <td style="color: var(--success); font-weight: bold;">Rs. ${record.sales.toFixed(2)}</td>
+                        <td style="color: var(--danger); font-weight: bold;">Rs. ${record.returns.toFixed(2)}</td>
+                        <td>
+                            <button onclick="editRecord(${originalIndex})" class="btn-sm btn-edit">Edit</button>
+                            <button onclick="deleteRecord(${originalIndex})" class="btn-sm btn-delete">Delete</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                    rowCount++;
+                }
+            });
+
+            if (rowCount === 0) {
+                tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No records found matching the selected filters.</td></tr>';
+            }
+        }
+
+        filterRep.addEventListener('change', renderTable);
+        filterYear.addEventListener('change', renderTable);
+        filterMonth.addEventListener('change', renderTable);
+
+
+        // --- CHART LOGIC ---
+        function updateChartDisplay() {
+            chartsContainer.innerHTML = '';
+            chartInstances.forEach(chart => chart.destroy());
+            chartInstances = [];
+
+            const selectedScope = chartScope.value;
+            const selectedYear = chartYear.value;
+            const selectedTimeframe = chartTimeframe.value;
+
+            if (selectedScope === 'Contribution') {
+                if (appData.reps.length === 0) {
+                    chartsContainer.innerHTML = '<p style="text-align: center; width: 100%; color: #64748b;">No representatives registered yet.</p>';
+                    return;
+                }
+                let repNames = [];
+                let repSales = [];
+                appData.reps.forEach(rep => {
+                    let totalSales = 0;
+                    appData.records.forEach(r => {
+                        const recYear = r.year || "2026";
+                        if (r.rep === rep && (selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) {
+                            totalSales += r.sales;
+                        }
+                    });
+                    if (totalSales > 0) {
+                        repNames.push(rep);
+                        repSales.push(totalSales);
+                    }
+                });
+                if (repSales.length === 0) {
+                    chartsContainer.innerHTML = '<p style="text-align: center; width: 100%; color: #64748b;">No sales data available for the selected period.</p>';
+                    return;
+                }
+                createContributionChart(repNames, repSales, selectedYear, selectedTimeframe);
+
+            } else if (selectedScope === 'AllReps') {
+                if (appData.reps.length === 0) {
+                    chartsContainer.innerHTML = '<p style="text-align: center; width: 100%; color: #64748b;">No representatives registered yet.</p>';
+                    return;
+                }
+                appData.reps.forEach(rep => {
+                    let sales = 0, returns = 0;
+                    appData.records.forEach(r => {
+                        const recYear = r.year || "2026";
+                        if (r.rep === rep && (selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) {
+                            sales += r.sales;
+                            returns += r.returns;
+                        }
+                    });
+                    createPerformanceChart(rep, sales, returns, selectedYear, selectedTimeframe);
+                });
+            } else if (selectedScope === 'Overall') {
+                let sales = 0, returns = 0;
+                appData.records.forEach(r => {
+                    const recYear = r.year || "2026";
+                    if ((selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) {
+                        sales += r.sales;
+                        returns += r.returns;
+                    }
+                });
+                createPerformanceChart('Overall Company', sales, returns, selectedYear, selectedTimeframe);
+            } else {
+                let sales = 0, returns = 0;
+                appData.records.forEach(r => {
+                    const recYear = r.year || "2026";
+                    if (r.rep === selectedScope && (selectedYear === 'All' || recYear === selectedYear) && (selectedTimeframe === 'Annual' || r.month === selectedTimeframe)) {
+                        sales += r.sales;
+                        returns += r.returns;
+                    }
+                });
+                createPerformanceChart(selectedScope, sales, returns, selectedYear, selectedTimeframe);
+            }
+        }
+
+        function createPerformanceChart(titleScopeText, sales, returns, year, timeframe) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chart-wrapper';
+            const canvas = document.createElement('canvas');
+            wrapper.appendChild(canvas);
+            chartsContainer.appendChild(wrapper);
+
+            const titleYearText = year === 'All' ? 'All Years' : year;
+            const titleTimeText = timeframe === 'Annual' ? 'Annual' : timeframe;
+
+            const newChart = new Chart(canvas.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: ['Sales (Rs.)', 'Returns (Rs.)'],
+                    datasets: [{
+                        data: [sales, returns],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        title: { display: true, text: `${titleScopeText} - ${titleYearText} - ${titleTimeText}`, font: { size: 14 } }
+                    }
+                }
+            });
+            chartInstances.push(newChart);
+        }
+
+        function createContributionChart(labels, data, year, timeframe) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chart-wrapper';
+            const canvas = document.createElement('canvas');
+            wrapper.appendChild(canvas);
+            chartsContainer.appendChild(wrapper);
+
+            const titleYearText = year === 'All' ? 'All Years' : year;
+            const titleTimeText = timeframe === 'Annual' ? 'Annual' : timeframe;
+            const bgColors = labels.map((_, index) => chartColors[index % chartColors.length]);
+
+            const newChart = new Chart(canvas.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: bgColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        title: { display: true, text: `Net Sales Contribution - ${titleYearText} - ${titleTimeText}`, font: { size: 14 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label ? context.label + ': ' : '';
+                                    label += 'Rs. ' + context.parsed;
+                                    let total = context.chart._metasets[context.datasetIndex].total;
+                                    let percentage = Math.round((context.parsed / total) * 100) + '%';
+                                    return label + ' (' + percentage + ')';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            chartInstances.push(newChart);
+        }
+
+        chartScope.addEventListener('change', updateChartDisplay);
+        chartYear.addEventListener('change', updateChartDisplay);
+        chartTimeframe.addEventListener('change', updateChartDisplay);
+
+        // --- MANUAL DATA ENTRY LOGIC ---
+        repForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const repName = document.getElementById('repName').value.trim();
+            if (repName && !appData.reps.includes(repName)) {
+                appData.reps.push(repName);
+                updateUI();
+                repForm.reset();
+                alert(`${repName} successfully registered!`);
+            } else if (appData.reps.includes(repName)) {
+                alert('This representative is already registered.');
+            }
+        });
+
+        dataForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const repValue = document.getElementById('repSelect').value;
+            const yearValue = document.getElementById('yearSelect').value;
+            const monthValue = document.getElementById('monthSelect').value;
+            const salesValue = parseFloat(document.getElementById('salesAmount').value);
+            const returnsValue = parseFloat(document.getElementById('returnsAmount').value);
+
+            if (editingIndex > -1) {
+                appData.records[editingIndex].rep = repValue;
+                appData.records[editingIndex].year = yearValue;
+                appData.records[editingIndex].month = monthValue;
+                appData.records[editingIndex].sales = salesValue;
+                appData.records[editingIndex].returns = returnsValue;
+                appData.records[editingIndex].timestamp = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString() + ' (Edited)';
+                resetDataForm();
+                alert('Data updated successfully!');
+            } else {
+                appData.records.push({
+                    timestamp: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString(),
+                    rep: repValue,
+                    year: yearValue,
+                    month: monthValue,
+                    sales: salesValue,
+                    returns: returnsValue
+                });
+                resetDataForm();
+                alert('Data added successfully!');
+            }
+            updateUI();
+        });
+
+        cancelEditBtn.addEventListener('click', resetDataForm);
+
+        function resetDataForm() {
+            dataForm.reset();
+            document.getElementById('repSelect').selectedIndex = 0;
+            document.getElementById('yearSelect').value = "2026";
+            document.getElementById('monthSelect').selectedIndex = 0;
+            editingIndex = -1;
+            dataSubmitBtn.textContent = 'Add Data Manually';
+            cancelEditBtn.style.display = 'none';
+        }
+
+        // --- RECORD MANAGEMENT (EDIT / DELETE / CLEAR) ---
+        function deleteRecord(index) {
+            if (confirm('Are you sure you want to delete this record? This action cannot be undone.')) {
+                appData.records.splice(index, 1);
+                if (editingIndex === index) {
+                    resetDataForm();
+                } else if (editingIndex > index) {
+                    editingIndex--;
+                }
+                updateUI();
+            }
+        }
+
+        window.editRecord = function(index) {
+            const record = appData.records[index];
+            document.getElementById('repSelect').value = record.rep;
+            document.getElementById('yearSelect').value = record.year || "2026";
+            document.getElementById('monthSelect').value = record.month;
+            document.getElementById('salesAmount').value = record.sales;
+            document.getElementById('returnsAmount').value = record.returns;
+            
+            editingIndex = index;
+            dataSubmitBtn.textContent = 'Update Data';
+            cancelEditBtn.style.display = 'block';
+            recordsContainer.style.display = 'block';
+            toggleRecordsBtn.textContent = 'Hide Records';
+            document.getElementById('dataEntryCard').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        window.clearAllData = function() {
+            if(appData.reps.length === 0 && appData.records.length === 0) {
+                alert("The system is already empty.");
+                return;
+            }
+            if(confirm("🚨 WARNING! 🚨\n\nAre you sure you want to completely erase ALL system data?\nThis action cannot be undone unless you have previously downloaded a backup.\n\nClick OK to permanently delete everything.")) {
+                appData = { reps: [], records: [] };
+                resetDataForm();
+                updateUI();
+                alert("All system data has been cleared.");
+            }
+        }
+
+        // --- JSON BACKUP & RESTORE LOGIC ---
+        window.backupData = function() {
+            if (appData.reps.length === 0 && appData.records.length === 0) {
+                alert("No data to backup yet.");
+                return;
+            }
+            const dataStr = JSON.stringify(appData, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sales_system_backup_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        restoreFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const importedData = JSON.parse(event.target.result);
+                    if (importedData.hasOwnProperty('reps') && importedData.hasOwnProperty('records')) {
+                        appData = importedData;
+                        updateUI();
+                        resetDataForm();
+                        alert('System Data successfully restored from Backup!');
+                        restoreFileInput.value = ''; 
+                    } else {
+                        alert('Error: The uploaded file does not match the required System Backup format.');
+                    }
+                } catch (error) {
+                    alert('Error: Invalid JSON file! Make sure you are uploading a .json Backup file here, NOT the Excel file.');
+                }
+            };
+            reader.readAsText(file);
+        });
+        
+        updateUI();
+
+    </script>
+</body>
+</html>
